@@ -1,0 +1,262 @@
+openapi: 3.0.3
+info:
+  title: Liberty Portal API Integration
+  version: 1.0.0
+  description: >-
+    REST APIs for Liberty Mutual policy renewal workflow with multi-region support (SG, HK, AU),
+    OAuth2 JWT auth, API keys, RBAC, rate limiting, caching, and audit logging.
+servers:
+  - url: https://api.example.com
+    description: Production
+  - url: https://staging-api.example.com
+    description: Staging
+  - url: http://localhost:3000
+    description: Local
+
+security:
+  - oauth2: [read, write]
+  - apiKeyAuth: []
+
+tags:
+  - name: Policies
+  - name: Customers
+  - name: Renewals
+  - name: Pricing
+  - name: Health
+
+paths:
+  /regions/{region}/policies:
+    get:
+      tags: [Policies]
+      summary: List policies for the authenticated user
+      parameters:
+        - $ref: '#/components/parameters/RegionParam'
+      responses:
+        '200':
+          description: List of policies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Policy'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+      security:
+        - oauth2: [read]
+    post:
+      tags: [Policies]
+      summary: Create a policy (admin/agent)
+      parameters:
+        - $ref: '#/components/parameters/RegionParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PolicyCreate' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Policy' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+      security:
+        - oauth2: [write]
+  /regions/{region}/policies/{policyId}:
+    get:
+      tags: [Policies]
+      summary: Get policy by ID
+      parameters:
+        - $ref: '#/components/parameters/RegionParam'
+        - name: policyId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Policy, content: { application/json: { schema: { $ref: '#/components/schemas/Policy' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+      security:
+        - oauth2: [read]
+    patch:
+      tags: [Policies]
+      summary: Update policy
+      parameters:
+        - $ref: '#/components/parameters/RegionParam'
+        - name: policyId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PolicyUpdate' }
+      responses:
+        '200': { description: Updated, content: { application/json: { schema: { $ref: '#/components/schemas/Policy' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+      security:
+        - oauth2: [write]
+  /regions/{region}/policies/{policyId}/renewals:
+    post:
+      tags: [Renewals]
+      summary: Renew a policy
+      parameters:
+        - $ref: '#/components/parameters/RegionParam'
+        - name: policyId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RenewalRequest' }
+      responses:
+        '200': { description: Renewal processed, content: { application/json: { schema: { $ref: '#/components/schemas/RenewalResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+      security:
+        - oauth2: [write]
+  /regions/{region}/pricing/quote:
+    post:
+      tags: [Pricing]
+      summary: Get premium quote based on risk factors and coverage
+      parameters:
+        - $ref: '#/components/parameters/RegionParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PricingRequest' }
+      responses:
+        '200': { description: Quote, content: { application/json: { schema: { $ref: '#/components/schemas/PricingResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+      security:
+        - oauth2: [read]
+  /health/live:
+    get:
+      tags: [Health]
+      summary: Liveness
+      responses:
+        '200': { description: OK }
+  /health/ready:
+    get:
+      tags: [Health]
+      summary: Readiness
+      responses:
+        '200': { description: OK }
+
+components:
+  parameters:
+    RegionParam:
+      name: region
+      in: path
+      required: true
+      schema:
+        type: string
+        enum: [SG, HK, AU]
+      description: Deployment region
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://auth.example.com/authorize
+          tokenUrl: https://auth.example.com/oauth/token
+          scopes:
+            read: Read access
+            write: Write access
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+  responses:
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    BadRequest:
+      description: Bad Request
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: Not Found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+  schemas:
+    Policy:
+      type: object
+      properties:
+        id: { type: string }
+        customerId: { type: string }
+        status: { type: string, enum: [active, lapsed, cancelled] }
+        coverage: { type: object, additionalProperties: true }
+        premium:
+          type: object
+          properties:
+            amount: { type: number }
+            currency: { type: string, enum: [SGD, HKD, AUD] }
+        region: { type: string, enum: [SG, HK, AU] }
+        effectiveDate: { type: string, format: date }
+        expiryDate: { type: string, format: date }
+    PolicyCreate:
+      type: object
+      required: [customerId, coverage, region]
+      properties:
+        customerId: { type: string }
+        coverage: { type: object, additionalProperties: true }
+        region: { type: string, enum: [SG, HK, AU] }
+    PolicyUpdate:
+      type: object
+      properties:
+        coverage: { type: object, additionalProperties: true }
+        status: { type: string, enum: [active, lapsed, cancelled] }
+    RenewalRequest:
+      type: object
+      required: [effectiveDate]
+      properties:
+        effectiveDate: { type: string, format: date }
+        options: { type: object, additionalProperties: true }
+    RenewalResponse:
+      type: object
+      properties:
+        policy: { $ref: '#/components/schemas/Policy' }
+        message: { type: string }
+    PricingRequest:
+      type: object
+      required: [coverage, riskFactors]
+      properties:
+        coverage: { type: object, additionalProperties: true }
+        riskFactors: { type: object, additionalProperties: true }
+        marketConditions: { type: object, additionalProperties: true }
+    PricingResponse:
+      type: object
+      properties:
+        amount: { type: number }
+        currency: { type: string, enum: [SGD, HKD, AUD] }
+        breakdown: { type: object, additionalProperties: true }
+    Error:
+      type: object
+      properties:
+        code: { type: string }
+        message: { type: string }
+        details: { type: object, additionalProperties: true }
+        correlationId: { type: string }
+
