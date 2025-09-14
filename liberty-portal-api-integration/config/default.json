@@ -1,0 +1,9 @@
+{
+  "rateLimitPerMinute": 60,
+  "redis": { "url": "redis://redis:6379" },
+  "oauth2": {
+    "issuer": "https://auth.example.com/",
+    "audience": "liberty-portal",
+    "jwksUri": "https://auth.example.com/.well-known/jwks.json"
+  }
+}
